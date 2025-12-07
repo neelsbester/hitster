@@ -22,34 +22,84 @@ CARD_HEIGHT = 3.5 * inch
 # Page margins
 MARGIN = 0.5 * inch
 
-# 5 Color Themes from the template (cycling through cards)
-COLOR_THEMES = [
-    {
-        "name": "gray",
-        "primary": HexColor("#5a5a5a"),      # Gray
-        "light_accent": HexColor("#7a7a7a"),  # Lighter gray for lines
+# Fixed black theme for QR code side (front)
+BLACK_THEME = {
+    "name": "black",
+    "primary": HexColor("#2d2d2d"),        # Near black
+    "light_accent": HexColor("#4a4a4a"),   # Dark gray for lines
+}
+
+# Decade-based color themes for song details (back)
+# Colors evoke the musical era's aesthetic
+DECADE_THEMES = {
+    2020: {
+        "name": "2020s",
+        "primary": HexColor("#0077b6"),      # Modern tech blue
+        "light_accent": HexColor("#0096c7"),
     },
-    {
-        "name": "teal",
-        "primary": HexColor("#2a9d8f"),       # Teal/Green
-        "light_accent": HexColor("#40b4a6"),  # Lighter teal
+    2010: {
+        "name": "2010s", 
+        "primary": HexColor("#e91e63"),      # Vibrant magenta (EDM/pop era)
+        "light_accent": HexColor("#f06292"),
     },
-    {
-        "name": "orange",
-        "primary": HexColor("#e9a033"),       # Orange/Amber
-        "light_accent": HexColor("#f0b454"),  # Lighter orange
+    2000: {
+        "name": "2000s",
+        "primary": HexColor("#7cb342"),      # Y2K lime green
+        "light_accent": HexColor("#9ccc65"),
     },
-    {
-        "name": "red",
-        "primary": HexColor("#c53a3a"),       # Red
-        "light_accent": HexColor("#d65555"),  # Lighter red
+    1990: {
+        "name": "1990s",
+        "primary": HexColor("#00897b"),      # Teal (grunge/alternative)
+        "light_accent": HexColor("#26a69a"),
     },
-    {
-        "name": "purple",
-        "primary": HexColor("#6b2d5c"),       # Dark Purple/Maroon
-        "light_accent": HexColor("#8a4275"),  # Lighter purple
+    1980: {
+        "name": "1980s",
+        "primary": HexColor("#d81b60"),      # Hot pink/neon (synthwave)
+        "light_accent": HexColor("#ec407a"),
     },
-]
+    1970: {
+        "name": "1970s",
+        "primary": HexColor("#ef6c00"),      # Orange (disco era)
+        "light_accent": HexColor("#ff9800"),
+    },
+    1960: {
+        "name": "1960s",
+        "primary": HexColor("#7b1fa2"),      # Purple (psychedelic)
+        "light_accent": HexColor("#9c27b0"),
+    },
+    1950: {
+        "name": "1950s",
+        "primary": HexColor("#c62828"),      # Classic red (rock & roll)
+        "light_accent": HexColor("#e53935"),
+    },
+    0: {  # Pre-1950s and fallback
+        "name": "classic",
+        "primary": HexColor("#5d4037"),      # Vintage brown
+        "light_accent": HexColor("#795548"),
+    },
+}
+
+
+def get_decade_theme(year: int) -> dict:
+    """Get the color theme for a song based on its decade."""
+    if year >= 2020:
+        return DECADE_THEMES[2020]
+    elif year >= 2010:
+        return DECADE_THEMES[2010]
+    elif year >= 2000:
+        return DECADE_THEMES[2000]
+    elif year >= 1990:
+        return DECADE_THEMES[1990]
+    elif year >= 1980:
+        return DECADE_THEMES[1980]
+    elif year >= 1970:
+        return DECADE_THEMES[1970]
+    elif year >= 1960:
+        return DECADE_THEMES[1960]
+    elif year >= 1950:
+        return DECADE_THEMES[1950]
+    else:
+        return DECADE_THEMES[0]
 
 # Card backgrounds
 LIGHT_BG = HexColor("#f8f8f8")       # Off-white for front
@@ -293,7 +343,6 @@ def generate_cards_pdf(songs: List[Song], output_path: Path):
     start_y = (page_height - total_cards_height) / 2
     
     total_songs = len(songs)
-    num_themes = len(COLOR_THEMES)
     
     # Process songs in batches (one batch = one sheet of paper, front and back)
     for batch_start in range(0, len(songs), cards_per_page):
@@ -303,7 +352,7 @@ def generate_cards_pdf(songs: List[Song], output_path: Path):
         progress = min(batch_start + cards_per_page, total_songs)
         print(f"  Generating cards {batch_start + 1}-{progress} of {total_songs}...")
         
-        # === FRONT PAGE (QR codes) ===
+        # === FRONT PAGE (QR codes) - Always black theme ===
         for idx, song in enumerate(batch):
             row = idx // cols
             col = idx % cols
@@ -313,15 +362,13 @@ def generate_cards_pdf(songs: List[Song], output_path: Path):
             y = start_y + ((rows - 1 - row) * CARD_HEIGHT)  # Top to bottom
             
             card_num = batch_start + idx + 1
-            # Cycle through color themes
-            theme = COLOR_THEMES[(card_num - 1) % num_themes]
             
             draw_crop_marks(c, x, y)
-            draw_qr_front(c, x, y, song, card_num, theme)
+            draw_qr_front(c, x, y, song, card_num, BLACK_THEME)
         
         c.showPage()
         
-        # === BACK PAGE (Song details) ===
+        # === BACK PAGE (Song details) - Decade-based color theme ===
         # Mirror horizontally for double-sided printing
         for idx, song in enumerate(batch):
             row = idx // cols
@@ -334,8 +381,8 @@ def generate_cards_pdf(songs: List[Song], output_path: Path):
             y = start_y + ((rows - 1 - row) * CARD_HEIGHT)
             
             card_num = batch_start + idx + 1
-            # Use same theme as front
-            theme = COLOR_THEMES[(card_num - 1) % num_themes]
+            # Get theme based on song's decade
+            theme = get_decade_theme(song.year)
             
             draw_crop_marks(c, x, y)
             draw_song_back(c, x, y, song, card_num, theme)
