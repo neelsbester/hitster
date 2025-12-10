@@ -47,3 +47,8 @@ output/*.pdf
 htmlcov/
 .coverage
 
+# Node.js (player app)
+node_modules/
+player/dist/
+player/.vite/
+*.log

@@ -2,6 +2,12 @@
 
 A Python tool that generates printable QR code cards for a Hitster-style music guessing game. Cards link to Spotify tracks when scanned.
 
+## Features
+
+- 🎴 **Card Generator** - Create printable QR code cards from Spotify playlists
+- 📱 **Web Player** - Scan cards and control Spotify playback from a web app
+- 🎵 **Spotify Integration** - Import playlists and control playback
+
 ## Setup
 
 1. Create a virtual environment and install dependencies:
@@ -18,7 +24,7 @@ source venv/bin/activate  # On macOS/Linux/WSL
 pip install -r requirements.txt
 ```
 
-## Usage
+## Card Generator Usage
 
 ### Option 1: Import from Spotify Playlist (Recommended)
 
@@ -63,13 +69,36 @@ python -m src.main generate -i songs.csv -o output/cards.pdf
 
 3. Print the PDF double-sided and cut out the cards.
 
+## Web Player 🎵
+
+The project includes a web-based QR scanner that automatically plays songs when you scan cards. Perfect for hosting game nights!
+
+### Quick Start
+
+```bash
+cd player
+npm install
+npm run dev
+```
+
+Then open `http://localhost:5173` in your browser.
+
+### Features
+
+- 📷 Camera-based QR code scanning
+- 🔊 Play on any Spotify Connect device (phone, speaker, etc.)
+- 📱 Works on mobile - install as a PWA
+
+See [player/README.md](player/README.md) for full setup instructions.
+
 ## Getting Spotify API Credentials
 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 2. Log in with your Spotify account
 3. Click "Create App"
 4. Fill in the app name and description (anything you like)
-5. Copy the **Client ID** and **Client Secret**
+5. For the web player, add redirect URI: `http://localhost:5173/callback`
+6. Copy the **Client ID** and **Client Secret**
 
 ## Commands
 
@@ -108,12 +137,22 @@ python -m src.main generate -i INPUT_CSV -o OUTPUT_PDF
 
 ## How to Play
 
+### Traditional (Phone Scanning)
 1. Shuffle the printed cards (QR side up)
 2. Players take turns scanning a QR code with their phone
 3. The song plays on Spotify
 4. Player guesses the year (and optionally song/artist)
 5. Flip the card to reveal the answer
 6. Score points for correct guesses!
+
+### With Web Player (Recommended for Groups)
+1. Set up a tablet/phone with the web player connected to a speaker
+2. Shuffle the printed cards
+3. Players take turns drawing a card and holding it up to the scanner
+4. The song plays automatically on the speaker
+5. Player guesses the year
+6. Host taps "Reveal" to show the answer
+7. Score points!
 
 ## Card Dimensions
 
@@ -124,3 +163,22 @@ Cards are sized at 2.5" x 3.5" (standard poker card size) by default.
 1. Print double-sided (flip on **short edge**)
 2. Use cardstock (heavier paper) for durability
 3. Cut along the crop marks
+
+## Project Structure
+
+```
+hitster/
+├── src/                    # Card generator Python code
+│   ├── main.py            # CLI entry point
+│   ├── csv_parser.py      # CSV parsing
+│   ├── pdf_generator.py   # PDF card generation
+│   ├── qr_generator.py    # QR code generation
+│   └── spotify_importer.py # Spotify playlist import
+├── player/                 # Web player app
+│   ├── src/               # JavaScript modules
+│   ├── index.html         # Main page
+│   └── styles.css         # Styling
+├── output/                 # Generated PDFs
+├── songs.csv              # Example song list
+└── requirements.txt       # Python dependencies
+```
