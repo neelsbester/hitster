@@ -6,13 +6,14 @@ from PIL import Image
 from io import BytesIO
 
 
-def generate_qr_code(data: str, size: int = 200) -> Image.Image:
+def generate_qr_code(data: str, size: int = 200, inverted: bool = False) -> Image.Image:
     """
     Generate a QR code image for the given data.
     
     Args:
         data: The data to encode in the QR code (e.g., spotify:track:xxx)
         size: The desired size of the QR code in pixels
+        inverted: If True, generate white QR on transparent background
         
     Returns:
         PIL Image object containing the QR code
@@ -26,7 +27,11 @@ def generate_qr_code(data: str, size: int = 200) -> Image.Image:
     qr.add_data(data)
     qr.make(fit=True)
     
-    img = qr.make_image(fill_color="black", back_color="white")
+    if inverted:
+        # White QR code on transparent background
+        img = qr.make_image(fill_color="white", back_color="transparent").convert("RGBA")
+    else:
+        img = qr.make_image(fill_color="black", back_color="white")
     
     # Resize to desired size
     img = img.resize((size, size), Image.Resampling.LANCZOS)
@@ -34,7 +39,7 @@ def generate_qr_code(data: str, size: int = 200) -> Image.Image:
     return img
 
 
-def generate_spotify_qr(spotify_uri: str, size: int = 200) -> Image.Image:
+def generate_spotify_qr(spotify_uri: str, size: int = 200, inverted: bool = False) -> Image.Image:
     """
     Generate a QR code for a Spotify URI.
     
@@ -43,11 +48,12 @@ def generate_spotify_qr(spotify_uri: str, size: int = 200) -> Image.Image:
     Args:
         spotify_uri: Spotify URI (e.g., spotify:track:4cOdK2wGLETKBW3PvgPWqT)
         size: The desired size of the QR code in pixels
+        inverted: If True, generate white QR on transparent background
         
     Returns:
         PIL Image object containing the QR code
     """
-    return generate_qr_code(spotify_uri, size)
+    return generate_qr_code(spotify_uri, size, inverted)
 
 
 def qr_to_bytes(img: Image.Image, format: str = "PNG") -> bytes:

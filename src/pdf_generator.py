@@ -1,9 +1,10 @@
-"""PDF generator for printable double-sided cards with premium starburst design."""
+"""PDF generator for printable double-sided cards with premium concentric circles design."""
 
 from io import BytesIO
 from pathlib import Path
 from typing import List
 import math
+import random
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch, mm
@@ -15,67 +16,59 @@ from .csv_parser import Song
 from .qr_generator import generate_spotify_qr
 
 
-# Card dimensions (poker card size)
+# Card dimensions (square cards)
 CARD_WIDTH = 2.5 * inch
-CARD_HEIGHT = 3.5 * inch
+CARD_HEIGHT = 2.5 * inch
 
 # Page margins
 MARGIN = 0.5 * inch
 
-# Fixed black theme for QR code side (front)
-BLACK_THEME = {
-    "name": "black",
-    "primary": HexColor("#2d2d2d"),        # Near black
-    "light_accent": HexColor("#4a4a4a"),   # Dark gray for lines
-}
-
-# Decade-based color themes for song details (back)
-# Colors evoke the musical era's aesthetic
+# Decade-based color themes - colors evoke each era's aesthetic
 DECADE_THEMES = {
     2020: {
         "name": "2020s",
-        "primary": HexColor("#0077b6"),      # Modern tech blue
-        "light_accent": HexColor("#0096c7"),
+        "primary": HexColor("#6366f1"),       # Indigo (modern tech/social media)
+        "light_accent": HexColor("#818cf8"),
     },
     2010: {
-        "name": "2010s", 
-        "primary": HexColor("#e91e63"),      # Vibrant magenta (EDM/pop era)
-        "light_accent": HexColor("#f06292"),
+        "name": "2010s",
+        "primary": HexColor("#ec4899"),       # Pink (EDM/pop era, Instagram)
+        "light_accent": HexColor("#f472b6"),
     },
     2000: {
         "name": "2000s",
-        "primary": HexColor("#7cb342"),      # Y2K lime green
-        "light_accent": HexColor("#9ccc65"),
+        "primary": HexColor("#10b981"),       # Emerald green (Y2K, iPod era)
+        "light_accent": HexColor("#34d399"),
     },
     1990: {
         "name": "1990s",
-        "primary": HexColor("#00897b"),      # Teal (grunge/alternative)
-        "light_accent": HexColor("#26a69a"),
+        "primary": HexColor("#14b8a6"),       # Teal (grunge, alternative)
+        "light_accent": HexColor("#2dd4bf"),
     },
     1980: {
         "name": "1980s",
-        "primary": HexColor("#d81b60"),      # Hot pink/neon (synthwave)
-        "light_accent": HexColor("#ec407a"),
+        "primary": HexColor("#f43f5e"),       # Hot pink/neon (synthwave, MTV)
+        "light_accent": HexColor("#fb7185"),
     },
     1970: {
         "name": "1970s",
-        "primary": HexColor("#ef6c00"),      # Orange (disco era)
-        "light_accent": HexColor("#ff9800"),
+        "primary": HexColor("#f97316"),       # Orange (disco, funk)
+        "light_accent": HexColor("#fb923c"),
     },
     1960: {
         "name": "1960s",
-        "primary": HexColor("#7b1fa2"),      # Purple (psychedelic)
-        "light_accent": HexColor("#9c27b0"),
+        "primary": HexColor("#a855f7"),       # Purple (psychedelic, flower power)
+        "light_accent": HexColor("#c084fc"),
     },
     1950: {
         "name": "1950s",
-        "primary": HexColor("#c62828"),      # Classic red (rock & roll)
-        "light_accent": HexColor("#e53935"),
+        "primary": HexColor("#ef4444"),       # Classic red (rock & roll, diners)
+        "light_accent": HexColor("#f87171"),
     },
-    0: {  # Pre-1950s and fallback
-        "name": "classic",
-        "primary": HexColor("#5d4037"),      # Vintage brown
-        "light_accent": HexColor("#795548"),
+    0: {
+        "name": "pre-1950s",
+        "primary": HexColor("#78716c"),       # Warm gray (vintage, classic)
+        "light_accent": HexColor("#a8a29e"),
     },
 }
 
@@ -100,6 +93,15 @@ def get_decade_theme(year: int) -> dict:
         return DECADE_THEMES[1950]
     else:
         return DECADE_THEMES[0]
+
+# Vibrant CMYK-inspired colors for the concentric circles design
+CIRCLE_COLORS = [
+    HexColor("#00e5ff"),  # Cyan
+    HexColor("#ff00ff"),  # Magenta
+    HexColor("#ffea00"),  # Yellow
+    HexColor("#ff1493"),  # Deep pink
+    HexColor("#00ff7f"),  # Spring green
+]
 
 # Card backgrounds
 LIGHT_BG = HexColor("#f8f8f8")       # Off-white for front
@@ -181,6 +183,79 @@ def draw_starburst_lines(c: canvas.Canvas, cx: float, cy: float,
         c.line(x1, y1, x2, y2)
 
 
+def draw_broken_arc(c: canvas.Canvas, cx: float, cy: float, radius: float, 
+                    start_angle: float, extent: float, color: Color, line_width: float = 1.0):
+    """Draw a single arc segment."""
+    c.setStrokeColor(color)
+    c.setLineWidth(line_width)
+    
+    # ReportLab arc uses bounding box coordinates
+    x1 = cx - radius
+    y1 = cy - radius
+    x2 = cx + radius
+    y2 = cy + radius
+    
+    c.arc(x1, y1, x2, y2, start_angle, extent)
+
+
+def draw_concentric_broken_circles(c: canvas.Canvas, cx: float, cy: float, 
+                                   min_radius: float, max_radius: float,
+                                   colors: list, seed: int = None):
+    """
+    Draw concentric broken/segmented circles in vibrant colors.
+    Creates the signature HITSTER card design with three distinct layers.
+    """
+    if seed is not None:
+        random.seed(seed)
+    
+    # Three layer configuration - inner, middle, outer
+    total_range = max_radius - min_radius
+    layer_size = total_range / 3
+    
+    layers = [
+        {"start": min_radius, "end": min_radius + layer_size, "spacing": 8, "line_width": 0.8},
+        {"start": min_radius + layer_size, "end": min_radius + 2 * layer_size, "spacing": 7, "line_width": 1.0},
+        {"start": min_radius + 2 * layer_size, "end": max_radius, "spacing": 6, "line_width": 1.2},
+    ]
+    
+    for layer_idx, layer in enumerate(layers):
+        layer_start = layer["start"]
+        layer_end = layer["end"]
+        ring_spacing = layer["spacing"]
+        base_line_width = layer["line_width"]
+        
+        num_rings = int((layer_end - layer_start) / ring_spacing)
+        
+        for ring_idx in range(num_rings):
+            radius = layer_start + (ring_idx * ring_spacing) + 3
+            
+            # Each ring has multiple arcs with gaps
+            num_segments = random.randint(3, 6)
+            
+            # Calculate arc positions - leave gaps between arcs
+            total_arc_degrees = random.randint(240, 320)
+            gap_degrees = (360 - total_arc_degrees) / num_segments
+            
+            # Random starting position for variety
+            current_angle = random.randint(0, 360)
+            
+            for seg_idx in range(num_segments):
+                # Arc extent varies
+                arc_extent = total_arc_degrees / num_segments + random.randint(-20, 20)
+                arc_extent = max(20, min(120, arc_extent))
+                
+                # Pick a color - alternate and vary
+                color = colors[(layer_idx + ring_idx + seg_idx) % len(colors)]
+                
+                # Slight variation in line width within layer
+                line_width = base_line_width + (ring_idx % 2) * 0.15
+                
+                draw_broken_arc(c, cx, cy, radius, current_angle, arc_extent, color, line_width)
+                
+                # Move to next position (arc extent + gap)
+                current_angle += arc_extent + gap_degrees + random.randint(-10, 10)
+
+
 def draw_inner_border(c: canvas.Canvas, x: float, y: float, color: Color, padding: float = 8):
     """Draw the inner rectangular border with rounded corners."""
     c.setStrokeColor(color)
@@ -191,40 +266,32 @@ def draw_inner_border(c: canvas.Canvas, x: float, y: float, color: Color, paddin
     border_width = CARD_WIDTH - 2 * padding
     border_height = CARD_HEIGHT - 2 * padding
     
-    c.roundRect(border_x, border_y, border_width, border_height, 
-                radius=3*mm, stroke=1, fill=0)
+    c.rect(border_x, border_y, border_width, border_height, stroke=1, fill=0)
 
 
 def draw_qr_front(c: canvas.Canvas, x: float, y: float, song: Song, card_num: int, theme: dict):
-    """Draw the front of a card (QR code side) with starburst design - ink-saving outline version."""
-    # Card center (no filled background to save ink)
+    """Draw the front of a card (QR code side) with concentric broken circles design on black background."""
+    # Card center
     cx = x + CARD_WIDTH / 2
     cy = y + CARD_HEIGHT / 2
     
-    # Draw starburst lines radiating from center
-    # Inner radius should be outside the QR code area
-    qr_size = int(CARD_WIDTH * 0.55)
-    inner_radius = qr_size / 2 + 15
-    outer_radius = min(CARD_WIDTH, CARD_HEIGHT) / 2 - 15
+    # Draw solid black background
+    c.setFillColor(black)
+    c.setStrokeColor(black)
+    c.rect(x, y, CARD_WIDTH, CARD_HEIGHT, stroke=1, fill=1)
     
-    draw_starburst_lines(c, cx, cy, inner_radius, outer_radius, theme["light_accent"])
+    # QR code size
+    qr_size = int(CARD_WIDTH * 0.50)
     
-    # Draw inner border
-    draw_inner_border(c, x, y, theme["light_accent"])
+    # Draw concentric broken circles around the QR code area
+    min_radius = qr_size / 2 + 8  # Start just outside QR code
+    max_radius = min(CARD_WIDTH, CARD_HEIGHT) / 2 - 5  # Leave small margin from edge
     
-    # Draw corner rosettes
-    rosette_radius = 6
-    corner_offset = 18
-    rosette_color = theme["light_accent"]
+    # Use card_num as seed for reproducible but varied patterns
+    draw_concentric_broken_circles(c, cx, cy, min_radius, max_radius, CIRCLE_COLORS, seed=card_num)
     
-    # Four corners
-    draw_corner_rosette(c, x + corner_offset, y + CARD_HEIGHT - corner_offset, rosette_radius, rosette_color)
-    draw_corner_rosette(c, x + CARD_WIDTH - corner_offset, y + CARD_HEIGHT - corner_offset, rosette_radius, rosette_color)
-    draw_corner_rosette(c, x + corner_offset, y + corner_offset, rosette_radius, rosette_color)
-    draw_corner_rosette(c, x + CARD_WIDTH - corner_offset, y + corner_offset, rosette_radius, rosette_color)
-    
-    # Generate QR code
-    qr_img = generate_spotify_qr(song.spotify_uri, size=qr_size)
+    # Generate white QR code on transparent background
+    qr_img = generate_spotify_qr(song.spotify_uri, size=qr_size, inverted=True)
     
     # Convert PIL image to reportlab-compatible format
     img_buffer = BytesIO()
@@ -232,22 +299,10 @@ def draw_qr_front(c: canvas.Canvas, x: float, y: float, song: Song, card_num: in
     img_buffer.seek(0)
     qr_reader = ImageReader(img_buffer)
     
-    # QR code container - circular background
-    qr_container_radius = qr_size / 2 + 12
-    c.setFillColor(white)
-    c.setStrokeColor(theme["primary"])
-    c.setLineWidth(2)
-    c.circle(cx, cy, qr_container_radius, stroke=1, fill=1)
-    
-    # Draw QR code centered
+    # Draw QR code centered (directly on black background)
     qr_x = cx - qr_size / 2
     qr_y = cy - qr_size / 2
-    c.drawImage(qr_reader, qr_x, qr_y, width=qr_size, height=qr_size)
-    
-    # Outer card border
-    c.setStrokeColor(CARD_BORDER_LIGHT)
-    c.setLineWidth(1)
-    c.roundRect(x, y, CARD_WIDTH, CARD_HEIGHT, radius=5*mm, stroke=1, fill=0)
+    c.drawImage(qr_reader, qr_x, qr_y, width=qr_size, height=qr_size, mask='auto')
 
 
 def draw_song_back(c: canvas.Canvas, x: float, y: float, song: Song, card_num: int, theme: dict):
@@ -269,8 +324,7 @@ def draw_song_back(c: canvas.Canvas, x: float, y: float, song: Song, card_num: i
     c.setStrokeColor(light_accent)
     c.setLineWidth(1.2)
     padding = 8
-    c.roundRect(x + padding, y + padding, CARD_WIDTH - 2*padding, CARD_HEIGHT - 2*padding, 
-                radius=3*mm, stroke=1, fill=0)
+    c.rect(x + padding, y + padding, CARD_WIDTH - 2*padding, CARD_HEIGHT - 2*padding, stroke=1, fill=0)
     
     # Draw corner rosettes in theme color
     rosette_radius = 6
@@ -315,7 +369,7 @@ def draw_song_back(c: canvas.Canvas, x: float, y: float, song: Song, card_num: i
     # Outer card border in theme color
     c.setStrokeColor(primary_color)
     c.setLineWidth(1.5)
-    c.roundRect(x, y, CARD_WIDTH, CARD_HEIGHT, radius=5*mm, stroke=1, fill=0)
+    c.rect(x, y, CARD_WIDTH, CARD_HEIGHT, stroke=1, fill=0)
 
 
 def generate_cards_pdf(songs: List[Song], output_path: Path):
@@ -352,7 +406,7 @@ def generate_cards_pdf(songs: List[Song], output_path: Path):
         progress = min(batch_start + cards_per_page, total_songs)
         print(f"  Generating cards {batch_start + 1}-{progress} of {total_songs}...")
         
-        # === FRONT PAGE (QR codes) - Always black theme ===
+        # === FRONT PAGE (QR codes) ===
         for idx, song in enumerate(batch):
             row = idx // cols
             col = idx % cols
@@ -362,13 +416,15 @@ def generate_cards_pdf(songs: List[Song], output_path: Path):
             y = start_y + ((rows - 1 - row) * CARD_HEIGHT)  # Top to bottom
             
             card_num = batch_start + idx + 1
+            # Get theme based on song's decade
+            theme = get_decade_theme(song.year)
             
             draw_crop_marks(c, x, y)
-            draw_qr_front(c, x, y, song, card_num, BLACK_THEME)
+            draw_qr_front(c, x, y, song, card_num, theme)
         
         c.showPage()
         
-        # === BACK PAGE (Song details) - Decade-based color theme ===
+        # === BACK PAGE (Song details) ===
         # Mirror horizontally for double-sided printing
         for idx, song in enumerate(batch):
             row = idx // cols
@@ -381,7 +437,7 @@ def generate_cards_pdf(songs: List[Song], output_path: Path):
             y = start_y + ((rows - 1 - row) * CARD_HEIGHT)
             
             card_num = batch_start + idx + 1
-            # Get theme based on song's decade
+            # Use same theme based on song's decade
             theme = get_decade_theme(song.year)
             
             draw_crop_marks(c, x, y)
